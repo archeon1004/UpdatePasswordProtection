@@ -1,0 +1,7 @@
+{
+    "Enabled" : "true",
+    "BypassPasswordUpdateProtection" : "true",
+    "RequestThreshold" : 3,
+    "EnableRiskClaim" : "true",
+    "test":"test"
+}
