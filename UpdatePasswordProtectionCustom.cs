@@ -11,14 +11,14 @@ namespace ThreatDetectionModule
 {
     public class UpdatePasswordProtectionCustom : Microsoft.IdentityServer.Public.ThreatDetectionFramework.ThreatDetectionModule, IPreAuthenticationThreatDetectionModule, IPostAuthenticationThreatDetectionModule
     {
-        public override string VendorName => "ING";
+        public override string VendorName => "IGN";
         public override string ModuleIdentifier => "UpdatePasswordProtectionCustom";
 
         internal Config _config;
 
         public string InternalVersion => "0.0.1.3";
 
-        private static readonly Logger fileLogger = new Logger(@"C:\dev\debug.log");
+        private static readonly Logger fileLogger = new Logger(@"C:\dev\debug.log"); //TODO hardcoded string
         private readonly string EndpointName = "/adfs/portal/updatepassword";
         private Logger Logger = fileLogger;
 
@@ -74,7 +74,7 @@ namespace ThreatDetectionModule
             {
                 Logger.WriteLine($"Got Exception during reading of Config file. Will use default.Details:\n{ex}");
             }
-            _config = PluginConfig;
+            _config = PluginConfig;//TODO fix config
             _config = new Config();
             Logger.WriteLine($"Configured Settings:{_config.ToString()}");
         }

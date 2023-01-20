@@ -3,7 +3,7 @@ using System.DirectoryServices;
 
 namespace ThreatDetectionModule
 {
-    internal static class ADHelper
+    internal static class ADHelper //TODO currently not needed to decide if
     {
         public static string GetUPNoutOfSAMAccountNAme(string SamAccountName)
         {

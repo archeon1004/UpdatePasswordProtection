@@ -5,8 +5,9 @@ namespace ThreatDetectionModule
 {
     internal static class SQLLiteHandlerClass
     {
-        private static readonly string DBFilePath = @"C:\dev\uplockout.db";
-        private static readonly Logger fileLogger = new Logger(@"C:\dev\DBDebug.log");
+        //TODO init database from code
+        private static readonly string DBFilePath = @"C:\dev\uplockout.db"; //TODO DB path from config
+        private static readonly Logger fileLogger = new Logger(@"C:\dev\DBDebug.log"); //TODO DB log from config plus disabled by default 
         private static Logger Logger = fileLogger;
         private static void InsertFailedLogon(string UserName)
         {
