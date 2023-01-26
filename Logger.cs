@@ -3,7 +3,7 @@ using System.IO;
 
 namespace ThreatDetectionModule
 {
-    internal class Logger //TODO replace by the NLOG or Windows event log
+    internal class Logger 
     {
         private readonly string _logFilePath;
 

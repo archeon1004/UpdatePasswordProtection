@@ -1,120 +1,93 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Security.Claims;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.IdentityServer.Public.ThreatDetectionFramework;
-using Newtonsoft.Json;
+using System.Net;
+using System.Diagnostics;
 
 namespace ThreatDetectionModule
 {
-    public class UpdatePasswordProtectionCustom : Microsoft.IdentityServer.Public.ThreatDetectionFramework.ThreatDetectionModule, IPreAuthenticationThreatDetectionModule, IPostAuthenticationThreatDetectionModule
+    public class UpdatePasswordProtectionCustom : Microsoft.IdentityServer.Public.ThreatDetectionFramework.ThreatDetectionModule, IPreAuthenticationThreatDetectionModule, IPostAuthenticationThreatDetectionModule, IRequestReceivedThreatDetectionModule
     {
-        public override string VendorName => "IGN";
+        public override string VendorName => "Ignastech";
         public override string ModuleIdentifier => "UpdatePasswordProtectionCustom";
 
-        internal Config _config;
+        internal Config _config = new Config();
 
-        public string InternalVersion => "0.0.1.3";
+        public string InternalVersion => "0.0.2.5";
 
-        private static readonly Logger fileLogger = new Logger(@"C:\dev\debug.log"); //TODO hardcoded string
         private readonly string EndpointName = "/adfs/portal/updatepassword";
-        private Logger Logger = fileLogger;
 
         public override void OnAuthenticationPipelineLoad(ThreatDetectionLogger adfslogger, ThreatDetectionModuleConfiguration configData)
         {
             try
             {
-                Logger.WriteLine($"Started Plugin {ModuleIdentifier} - {InternalVersion}");
-                ReadConfigFile(adfslogger, configData);
+                _config.InitConfig();
+                WindowsLogger.WriteWinLogEvent($"Configured Plugin settings:{_config}",EventLogEntryType.Information);
             }
             catch (Exception ex)
             {
                 adfslogger.WriteAdminLogErrorMessage(ex.ToString());
-                Logger.WriteLine($"Could not start plugin - {ex}");
                 throw;
             }
         }
 
-        private void ReadConfigFile(ThreatDetectionLogger adfslogger, ThreatDetectionModuleConfiguration configData)
-        {
-            Logger.WriteLine("Reading JSON configuration");
-            adfslogger.WriteDebugMessage("Reading JSON configuration");
-            string jsonString;
-            Config PluginConfig = new Config();
-            try
-            {
-                using (StreamReader sr = new StreamReader(configData.ReadData()))
-                {
-                    StringBuilder sb = new StringBuilder();
-                    string line = null;
-
-                    while ((line = sr.ReadLine()) != null)
-                    {
-                        sb.Append(line);
-                    }
-                    jsonString = sb.ToString();
-                    sb.Clear();
-                }
-                Logger.WriteLine($"config string content: {jsonString}");
-                try
-                {
-                    PluginConfig = JsonConvert.DeserializeObject<Config>(jsonString);
-                }
-                catch (Exception e)
-                {
-
-                    Logger.WriteLine($"{e}");
-                }
-                Logger.WriteLine(JsonConvert.DeserializeObject(jsonString).ToString());
-                Logger.WriteLine($"Configured Settings:{PluginConfig.ToString()}");
-            }
-            catch (Exception ex)
-            {
-                Logger.WriteLine($"Got Exception during reading of Config file. Will use default.Details:\n{ex}");
-            }
-            _config = PluginConfig;//TODO fix config
-            _config = new Config();
-            Logger.WriteLine($"Configured Settings:{_config.ToString()}");
-        }
-
         public override void OnAuthenticationPipelineUnload(ThreatDetectionLogger adfslogger)
         {
-            Logger.WriteLine("Closing Plugin");
         }
 
         public override void OnConfigurationUpdate(ThreatDetectionLogger adfslogger, ThreatDetectionModuleConfiguration configData)
         {
-            adfslogger.WriteAdminLogErrorMessage("Updating Configuration");
-            ReadConfigFile(adfslogger, configData);
+            WindowsLogger.WriteWinLogEvent("Reloading plugin configuration", EventLogEntryType.Information);
+            try
+            {
+                Config PluginConfig = new Config();
+                _config = PluginConfig;
+                _config.InitConfig();
+            }
+            catch (Exception ex)
+            {
+                WindowsLogger.WriteWinLogEvent($"Got Exception reading registry. Details:\n{ex}",EventLogEntryType.Error);
+            }
+        }
+
+        public Task<ThrottleStatus> EvaluateRequest(ThreatDetectionLogger adfslogger, RequestContext requestContext)
+        {
+            if(_config.CheckIfTorNode)
+            {
+                foreach (IPAddress ipAddress in requestContext.ClientIpAddresses)
+                {
+                    if (TorModule.IsTorExitNode(ipAddress))
+                    {
+                        WindowsLogger.WriteWinLogEvent($"{ipAddress} is found to be in Tor",EventLogEntryType.Warning);
+                        return Task.FromResult(ThrottleStatus.Block);
+                    }
+                }
+            }
+            return Task.FromResult(ThrottleStatus.NotEvaluated);
         }
 
         public Task<ThrottleStatus> EvaluatePreAuthentication(ThreatDetectionLogger adfslogger, RequestContext requestContext, SecurityContext securityContext, ProtocolContext protocolContext, IList<Claim> additionalClams)
         {   
             if (requestContext.LocalEndPointAbsolutePath == EndpointName)
             {
-                Logger.WriteLine("Entered PreAuthentication. Checking if plugin is enabled");
                 if (_config.Enabled == true)
                 {
                     string UserName = securityContext.UserIdentifier.Split('\\')[1];
-                    Logger.WriteLine($"Checking update password request for a user: '{UserName}'");
                     if (!string.IsNullOrEmpty(UserName))
                     {
-                        Logger.WriteLine("Evaluating UserPolicy for Update Passowrd");
                         try
                         {
                             var counterTest = SQLLiteHandlerClass.CheckCounter(UserName);
-                            Logger.WriteLine($"Current Lockout Value:{counterTest}");
                             if (counterTest >= _config.RequestThreshold)
                             {
                                 if(!(_config.RequestThreshold == 0))
                                 {
-                                    Logger.WriteLine($"Detected user hit the limit of {_config.RequestThreshold} for a user '{UserName}'. Will deny request");
-                                    adfslogger.WriteAdminLogErrorMessage($"User '{UserName}' got blocked on the Update Password endpoint due to too many failed password update requests.");
+                                    WindowsLogger.WriteWinLogEvent($"Detected user '{UserName}' hit the limit of {_config.RequestThreshold}. Request will be denied",EventLogEntryType.Error);
                                     if (_config.BypassPasswordUpdateProtection == true)
                                     {
-                                        Logger.WriteLine($"WARNING: BYPASS is enabled, request will be allowed. Normally this request would be rejected");
+                                        WindowsLogger.WriteWinLogEvent($"WARNING: BYPASS is enabled, request will be allowed. Normally this request would be rejected",EventLogEntryType.Warning);
                                         return Task.FromResult<ThrottleStatus>(ThrottleStatus.Allow);
                                     }
                                     else
@@ -124,57 +97,53 @@ namespace ThreatDetectionModule
                                 }
                                 else
                                 {
-                                    Logger.WriteLine($"Threshold set to 0. Will approve request");
+                                    WindowsLogger.WriteWinLogEvent($"Threshold set to 0. Will approve request", EventLogEntryType.Information);
                                 }
                             }
                             else
                             {
-                                Logger.WriteLine($"User '{UserName}' has not been detected as locked out. Will Allow request");
+                                WindowsLogger.WriteWinLogEvent($"User '{UserName}' has not been detected as locked out. Will Allow request", EventLogEntryType.Information);
                             }
                         }
                         catch (Exception e)
                         {
-                            Logger.WriteLine($"Exception occured\n\r{e}");
-                            adfslogger.WriteAdminLogErrorMessage($"User lockout database exception occurred.\n\rDetails:\n\r{e}");
+                            WindowsLogger.WriteWinLogEvent($"Exception occured\n\r{e}", EventLogEntryType.Error);
                             return Task.FromResult<ThrottleStatus>(ThrottleStatus.Allow);
                         }
                     }
                     else
                     {
-                        Logger.WriteLine($"Got empty user name for: '{securityContext.UserIdentifier}'");
+                        //WindowsLogger.WriteWinLogEvent($"Got empty user name for: '{securityContext.UserIdentifier}'");
                     }
                 }
                 else
                 {
-                    Logger.WriteLine("Plugin Enforcement Disabled. Allowing Request");
+                    //WindowsLogger.WriteWinLogEvent("Plugin Enforcement Disabled. Allowing Request");
                 }
             }
             else
             {
-                Logger.WriteLine("Request is not targeting update password endpoint. Skipping");
+                //.WriteWinLogEvent("Request is not targeting update password endpoint. Skipping");
             }
             return Task.FromResult<ThrottleStatus>(ThrottleStatus.Allow);
         }
         public Task<RiskScore> EvaluatePostAuthentication(ThreatDetectionLogger adfslogger, RequestContext requestContext, SecurityContext securityContext, ProtocolContext protocolContext, AuthenticationResult authenticationResult, IList<Claim> additionalClams)
-        { 
+        {
             if (requestContext.LocalEndPointAbsolutePath == EndpointName)
             {
-                Logger.WriteLine("Entered PostAuthentication. Checking if plugin is enabled");
                 if (_config.Enabled == true)
                 {
                     string UserName = securityContext.UserIdentifier.Split('\\')[1];
-                    Logger.WriteLine($"Checking update password request results for a user: '{UserName}'");
                     if (authenticationResult == AuthenticationResult.Failure)
                     {
-                        Logger.WriteLine($"User '{UserName}' Failed Authentication. Will Increase counter");
-                        adfslogger.WriteAdminLogErrorMessage($"User '{UserName}' Failed Authentication. Will Increase counter");
+                        WindowsLogger.WriteWinLogEvent($"User '{UserName}' Failed Authentication. Will Increase counter", EventLogEntryType.Warning);
                         try
                         {
                             SQLLiteHandlerClass.IncreaseCounter(UserName);
                         }
                         catch (Exception ex)
                         {
-                            Logger.WriteLine($"Exception cought during Increasing Counter phase.\n\rDetails:\n\r{ex}");
+                            WindowsLogger.WriteWinLogEvent($"Exception cought during Increasing Counter phase.\n\rDetails:\n\r{ex}", EventLogEntryType.Error);
                         }
                         if(_config.EnableRiskClaim == true)
                         {
@@ -183,18 +152,18 @@ namespace ThreatDetectionModule
                     }
                     else
                     {
-                        Logger.WriteLine("User Authentication succeeded. Counter won't be increased and update password will be allowed.");
+                        //WindowsLogger.WriteWinLogEvent("User Authentication succeeded. Counter won't be increased and update password will be allowed.");
                     }
                 }
                 else
                 {
-                    Logger.WriteLine("Plugin Enforcement Disabled. Allowing Request.");
+                    //WindowsLogger.WriteWinLogEvent("Plugin Enforcement Disabled. Allowing Request.");
                 }
 
             }
             else
             {
-                Logger.WriteLine("Request is not targeting update password endpoint. Skipping");
+                //WindowsLogger.WriteWinLogEvent("Request is not targeting update password endpoint. Skipping");
             }
             return Task.FromResult<RiskScore>(RiskScore.NotEvaluated);
         }

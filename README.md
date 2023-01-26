@@ -18,7 +18,6 @@ This plugin capability has been introduced into Windows Server 2019 threfore thi
 ## Dependencies
 
 - SQLite
-- Newtonsoft.Json
 
 ## Usage
 
@@ -27,12 +26,13 @@ This plugin uses database and configuration file to operate. Currently database 
 ## Features
 
 - [x] Lock the user when the count of failed password retries is 3
+- [x] Checking if request is from TOR network (not yet tested)
+- [x] Event log instead of a file
 
 ## todo
 
 - [ ] Code Cleanup
 - [ ] Add powershell module to unlock / manage the plugin
-- [ ] Event log instead of a file
 - [ ] Test performance of the logic and impact on adfs service
 
 ## Further reading
