@@ -3,6 +3,8 @@
 [Proof of Concept]
 This is an AD FS plugin that utilizes the Risk Assesement framework to provide capabilities of protection against password spray and this kind of attacks on the Update password endpoint.
 
+[![DevSkim](https://github.com/archeon1004/UpdatePasswordProtection/actions/workflows/devskim.yml/badge.svg?branch=main)](https://github.com/archeon1004/UpdatePasswordProtection/actions/workflows/devskim.yml)
+
 ## Overview
 
 By deafult the **/adfs/portal/updatepassword** endpoint is disabled on newly installed AD FS (Windows Server 2016 and above) farm. It's main goal is to provide password change capabilities for the users. To update their passwords users need to know the current one as this endpoint enforces no MFA whatsoever. The smart lockout capabilities were confirmed to not protecting this endpoint against password guessing kind of things therefore keeping it enabled might be searious risk to consider for companies. Windows Server 2019 comes with functionallity called  [Risk Assesment Framework](https://learn.microsoft.com/en-us/windows-server/identity/ad-fs/development/ad-fs-risk-assessment-model). This example uses SQLite database to store users that failed to provide correct password more than 3 times.
