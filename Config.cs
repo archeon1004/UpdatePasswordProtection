@@ -7,10 +7,10 @@ namespace ThreatDetectionModule
     {
         internal bool BypassPasswordUpdateProtection { get; set; }
         internal int RequestThreshold { get; set; }
-        internal bool EnableRiskClaim { get; set; }
+        internal bool TorAuditOnly { get; set; }
         internal bool Enabled { get; set;  }
         internal bool CheckIfTorNode { get; set; }
-        internal bool FileLogEnabled { get; set; }
+        internal bool DebugFileLogEnabled { get; set; }
         internal string FileLogPath { get; set; } = string.Empty;
         internal string DatabaseFilePath { get; set; } = string.Empty;
 
@@ -41,15 +41,20 @@ namespace ThreatDetectionModule
                 {
                     RequestThreshold = Convert.ToInt32(oRequestThreshold);
                 }
-                object oEnableRiskClaim = rk.GetValue("EnableRiskClaim");
-                if (oEnableRiskClaim != null)
+                object oTorAuditOnly = rk.GetValue("TorAuditOnly");
+                if (oTorAuditOnly != null)
                 {
-                    EnableRiskClaim = oEnableRiskClaim.ToString() == "0" ? false : true;
+                    TorAuditOnly = oTorAuditOnly.ToString() == "0" ? false : true;
                 }
                 object oCheckIfTorNode = rk.GetValue("CheckIfTorNode");
                 if (oCheckIfTorNode != null)
                 {
                     CheckIfTorNode = oCheckIfTorNode.ToString() == "0" ? false : true;
+                }
+                object oDatabaseFilePath = rk.GetValue("DatabaseFilePath");
+                if(oCheckIfTorNode != null)
+                {
+                    DatabaseFilePath = oDatabaseFilePath.ToString();
                 }
             } 
             catch
@@ -57,14 +62,23 @@ namespace ThreatDetectionModule
                 BypassPasswordUpdateProtection = false;
                 Enabled = false;
                 RequestThreshold = -1;
-                EnableRiskClaim = false;
+                TorAuditOnly = false;
                 CheckIfTorNode = false;
+                DatabaseFilePath = @"C:\Windows\ADFS\UpdatePasswordCustomPlugin\";
             } 
         }
-        public override string ToString() => $"Enabled: {Enabled};BypassPasswordUpdateProtection: {BypassPasswordUpdateProtection};RequestThreshold: {RequestThreshold};EnableRiskClaim: {EnableRiskClaim}; CheckIfTorNode: {CheckIfTorNode}";
+        public override string ToString() => $"Enabled: {Enabled};BypassPasswordUpdateProtection: {BypassPasswordUpdateProtection};RequestThreshold: {RequestThreshold};TorAuditOnly: {TorAuditOnly}; CheckIfTorNode: {CheckIfTorNode}";
         public void InitConfig()
         {
-            WindowsLogger.CreateWinLog();
+            try
+            {
+                SQLLiteHandlerClass.CreateDatabase(databasePath: DatabaseFilePath);
+            }
+            catch (Exception ex)
+            {
+                WindowsLogger.WriteWinLogEvent($"SQL Initialization failed. \nException:\n{ex.Message}", EventLogEntryType.Error);
+                throw;
+            } 
             WindowsLogger.WriteWinLogEvent("Reading Plugin Registry Configuration Configuration", EventLogEntryType.Information);
             try
             {

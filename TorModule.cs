@@ -1,48 +1,58 @@
 ﻿using System;
 using System.Net;
 using System.IO;
-using System.Linq;
 using System.Collections.Generic;
-using ThreatDetectionModule;
 
-internal static class TorModule
+namespace ThreatDetectionModule
 {
-    private static HashSet<IPAddress> torExitNodes = new HashSet<IPAddress>();
-
-    internal static void LoadTorExitNodes()
+    internal static class TorModule
     {
-        string url = "https://check.torproject.org/exit-addresses";
-        using (WebClient client = new WebClient())
+        private static HashSet<IPAddress> torExitNodes = new HashSet<IPAddress>();
+
+        internal static void LoadTorExitNodes()
         {
-            string text = client.DownloadString(url);
-            using (StringReader reader = new StringReader(text))
+            string url = "https://check.torproject.org/exit-addresses";
+            using (WebClient client = new WebClient())
             {
-                string line;
-                while ((line = reader.ReadLine()) != null)
+                try
                 {
-                    if (line.StartsWith("ExitAddress"))
+                    string text = client.DownloadString(url);
+                    using (StringReader reader = new StringReader(text))
                     {
-                        string[] parts = line.Split(' ');
-                        if (parts.Length >= 2)
+                        string line;
+                        while ((line = reader.ReadLine()) != null)
                         {
-                            string address = parts[1];
-                            try
+                            if (line.StartsWith("ExitAddress"))
                             {
-                                torExitNodes.Add(IPAddress.Parse(address));
-                            }
-                            catch (FormatException)
-                            {
-                                //
+                                string[] parts = line.Split(' ');
+                                if (parts.Length >= 2)
+                                {
+                                    string address = parts[1];
+                                    try
+                                    {
+                                        torExitNodes.Add(IPAddress.Parse(address));
+                                    }
+                                    catch (FormatException)
+                                    {
+                                        //
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                catch (Exception)
+                {
+                    throw;
+                }
+
             }
         }
-    }
 
-    internal static bool IsTorExitNode(IPAddress address)
-    {
-        return torExitNodes.Contains(address);
+        internal static bool IsTorExitNode(IPAddress address)
+        {
+            return torExitNodes.Contains(address);
+        }
     }
 }
+    

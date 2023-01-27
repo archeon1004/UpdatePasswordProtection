@@ -32,7 +32,7 @@ namespace ThreatDetectionModule
             }
             catch
             {
-                System.Exception e = new Exception("LDAP lookup Error");
+                Exception e = new Exception("LDAP lookup Error");
                 throw e;
             }
         }

@@ -15,7 +15,7 @@ namespace ThreatDetectionModule
 
         internal Config _config = new Config();
 
-        public string InternalVersion => "0.0.2.5";
+        public string InternalVersion => "0.0.2.12";
 
         private readonly string EndpointName = "/adfs/portal/updatepassword";
 
@@ -23,6 +23,8 @@ namespace ThreatDetectionModule
         {
             try
             {
+                WindowsLogger.CreateWinLog();
+                WindowsLogger.WriteWinLogEvent($"Initiating AD FS {ModuleIdentifier} plugin. Internal Version - {InternalVersion}", EventLogEntryType.Information);
                 _config.InitConfig();
                 WindowsLogger.WriteWinLogEvent($"Configured Plugin settings:{_config}",EventLogEntryType.Information);
             }
@@ -35,11 +37,11 @@ namespace ThreatDetectionModule
 
         public override void OnAuthenticationPipelineUnload(ThreatDetectionLogger adfslogger)
         {
+            WindowsLogger.WriteWinLogEvent($"OnAuthenticationPipelineUnload: Unloading plugin", EventLogEntryType.Information);
         }
 
         public override void OnConfigurationUpdate(ThreatDetectionLogger adfslogger, ThreatDetectionModuleConfiguration configData)
         {
-            WindowsLogger.WriteWinLogEvent("Reloading plugin configuration", EventLogEntryType.Information);
             try
             {
                 Config PluginConfig = new Config();
@@ -48,7 +50,8 @@ namespace ThreatDetectionModule
             }
             catch (Exception ex)
             {
-                WindowsLogger.WriteWinLogEvent($"Got Exception reading registry. Details:\n{ex}",EventLogEntryType.Error);
+                adfslogger.WriteAdminLogErrorMessage(ex.ToString());
+                throw;
             }
         }
 
@@ -60,31 +63,46 @@ namespace ThreatDetectionModule
                 {
                     if (TorModule.IsTorExitNode(ipAddress))
                     {
-                        WindowsLogger.WriteWinLogEvent($"{ipAddress} is found to be in Tor",EventLogEntryType.Warning);
-                        return Task.FromResult(ThrottleStatus.Block);
+                        string detailsMessage = $"{ipAddress} has been found to be from Tor network. Request will be denied\n" +
+                            $"request details:\n" +
+                            $"Local endpoint: {requestContext.LocalEndPointAbsolutePath}\n" +
+                            $"Client Location: {requestContext.ClientLocation}\n" +
+                            $"User Agent: {requestContext.UserAgentString}" +
+                            $"Incoming Request Type: {requestContext.IncomingRequestType}";
+                        WindowsLogger.WriteWinLogEvent($"{detailsMessage}",EventLogEntryType.Warning);
+                        if(_config.TorAuditOnly == true)
+                        {
+                            WindowsLogger.WriteWinLogEvent($"AUDIT MODE: Tor Audit is enabled.Request has been allowed", EventLogEntryType.Warning);
+                        }
+                        else
+                        {
+                            return Task.FromResult(ThrottleStatus.Block);
+                        }
                     }
                 }
             }
             return Task.FromResult(ThrottleStatus.NotEvaluated);
         }
-
         public Task<ThrottleStatus> EvaluatePreAuthentication(ThreatDetectionLogger adfslogger, RequestContext requestContext, SecurityContext securityContext, ProtocolContext protocolContext, IList<Claim> additionalClams)
         {   
             if (requestContext.LocalEndPointAbsolutePath == EndpointName)
             {
                 if (_config.Enabled == true)
                 {
-                    string UserName = securityContext.UserIdentifier.Split('\\')[1];
-                    if (!string.IsNullOrEmpty(UserName))
+                    string [] userProps = securityContext.UserIdentifier.Split('\\');
+                    string userName = userProps[1];
+                    string userDomain = userProps[0];
+                    if (!string.IsNullOrEmpty(userName))
                     {
                         try
                         {
-                            var counterTest = SQLLiteHandlerClass.CheckCounter(UserName);
+                            WindowsLogger.WriteWinLogEvent($"Got Update Password request. Checking update password lockout status for user '{userName}'", EventLogEntryType.Information);
+                            var counterTest = SQLLiteHandlerClass.CheckCounter(userName);
                             if (counterTest >= _config.RequestThreshold)
                             {
                                 if(!(_config.RequestThreshold == 0))
                                 {
-                                    WindowsLogger.WriteWinLogEvent($"Detected user '{UserName}' hit the limit of {_config.RequestThreshold}. Request will be denied",EventLogEntryType.Error);
+                                    WindowsLogger.WriteWinLogEvent($"Detected user '{userName}'from '{userDomain}' hit the limit of '{_config.RequestThreshold}'. Request will be denied",EventLogEntryType.Error);
                                     if (_config.BypassPasswordUpdateProtection == true)
                                     {
                                         WindowsLogger.WriteWinLogEvent($"WARNING: BYPASS is enabled, request will be allowed. Normally this request would be rejected",EventLogEntryType.Warning);
@@ -102,7 +120,7 @@ namespace ThreatDetectionModule
                             }
                             else
                             {
-                                WindowsLogger.WriteWinLogEvent($"User '{UserName}' has not been detected as locked out. Will Allow request", EventLogEntryType.Information);
+                                WindowsLogger.WriteWinLogEvent($"User '{userName}' has not been detected as locked out. Will Allow request", EventLogEntryType.Information);
                             }
                         }
                         catch (Exception e)
@@ -133,21 +151,19 @@ namespace ThreatDetectionModule
             {
                 if (_config.Enabled == true)
                 {
-                    string UserName = securityContext.UserIdentifier.Split('\\')[1];
+                    string[] userProps = securityContext.UserIdentifier.Split('\\');
+                    string userName = userProps[1];
+                    string userDomain = userProps[0];
                     if (authenticationResult == AuthenticationResult.Failure)
                     {
-                        WindowsLogger.WriteWinLogEvent($"User '{UserName}' Failed Authentication. Will Increase counter", EventLogEntryType.Warning);
+                        WindowsLogger.WriteWinLogEvent($"User '{userName}' from '{userDomain}' Failed Authentication. Will Increase counter", EventLogEntryType.Warning);
                         try
                         {
-                            SQLLiteHandlerClass.IncreaseCounter(UserName);
+                            SQLLiteHandlerClass.IncreaseCounter(userName);
                         }
                         catch (Exception ex)
                         {
                             WindowsLogger.WriteWinLogEvent($"Exception cought during Increasing Counter phase.\n\rDetails:\n\r{ex}", EventLogEntryType.Error);
-                        }
-                        if(_config.EnableRiskClaim == true)
-                        {
-                            return Task.FromResult<RiskScore>(RiskScore.Medium);
                         }
                     }
                     else
