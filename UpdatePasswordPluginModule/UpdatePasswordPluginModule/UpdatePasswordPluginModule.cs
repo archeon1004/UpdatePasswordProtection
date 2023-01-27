@@ -2,6 +2,7 @@
 using System.Management.Automation;
 using Microsoft.Win32;
 using System.Diagnostics;
+using System.Collections.Generic;
 
 namespace UpdatePasswordPluginModule
 {
@@ -27,12 +28,27 @@ namespace UpdatePasswordPluginModule
     [Cmdlet("Invoke", "UPPluginLogConfiguration")]
     public class PluginLogConfiguration : Cmdlet
     {
+        [Parameter(Position = 0, Mandatory = true)]
+        [ValidateSet("Application","ADFSAdmin",IgnoreCase = true)]
+        public string LogRequired { get; set; }
         protected override void ProcessRecord()
         {
             try
             {
                 const string eventsource = "ADFSUpdatePasswordPlugin";
-                const string eventLog = "Application";
+                string eventLog = "Application";
+                if(!string.IsNullOrWhiteSpace(LogRequired))
+                {
+                    if(LogRequired == "ADFSAdmin")
+                    {
+                        eventLog = "AD FS/Admin";
+                    }
+                    else
+                    {
+                        eventLog = LogRequired;
+                    }
+                }
+                WriteObject("Configuring event log source for AD FS Update Password Plugin");
                 if (!EventLog.SourceExists(eventsource))
                 {
                     EventLog.CreateEventSource(source: eventsource, logName: eventLog);
