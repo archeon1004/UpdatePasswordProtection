@@ -25,37 +25,24 @@ namespace UpdatePasswordPluginModule
             WriteObject("Registry key added successfully.");
         }
     }
-    [Cmdlet("Invoke", "UPPluginLogConfiguration")]
+    [Cmdlet("Invoke", "UPPLogConfig")]
     public class PluginLogConfiguration : Cmdlet
     {
-        [Parameter(Position = 0, Mandatory = true)]
-        [ValidateSet("Application","ADFSAdmin",IgnoreCase = true)]
-        public string LogRequired { get; set; }
         protected override void ProcessRecord()
         {
             try
             {
                 const string eventsource = "ADFSUpdatePasswordPlugin";
-                string eventLog = "Application";
-                if(!string.IsNullOrWhiteSpace(LogRequired))
-                {
-                    if(LogRequired == "ADFSAdmin")
-                    {
-                        eventLog = "AD FS/Admin";
-                    }
-                    else
-                    {
-                        eventLog = LogRequired;
-                    }
-                }
-                WriteObject("Configuring event log source for AD FS Update Password Plugin");
+                const string eventLog = "Application";
+                WriteObject($"Configuring event log source {eventsource} for AD FS Update Password Plugin in '{eventLog}' log");
                 if (!EventLog.SourceExists(eventsource))
                 {
+                    WriteWarning("Source not exist. Creating event source.");
                     EventLog.CreateEventSource(source: eventsource, logName: eventLog);
                 }
                 try
                 {
-                    EventLog ev =new EventLog(eventLog, ".", eventsource);
+                    EventLog ev =new EventLog(logName: eventLog, machineName: ".",source: eventsource);
                     ev.Dispose();
                 }
                 catch (Exception ex)
@@ -68,6 +55,17 @@ namespace UpdatePasswordPluginModule
                 throw e;
             }
             
+        }
+    }
+
+    [Cmdlet(VerbsCommon.Get,"UPconfig")]
+    [CmdletBinding]
+    public class PluginConfig : Cmdlet
+    {
+        protected override void ProcessRecord()
+        {
+            ConfigHelper config = new ConfigHelper();
+            WriteObject(config);
         }
     }
 }
