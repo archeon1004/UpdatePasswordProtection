@@ -1,10 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
-using System.Diagnostics.Tracing;
 
 namespace ThreatDetectionModule
 {
@@ -52,9 +47,8 @@ namespace ThreatDetectionModule
             }
             catch (Exception e)
             {
-                throw new Exception("Event Log writing exception",e);
+                throw new Exception("Event Log exception",e);
             }
-            
         }
     }
 }
