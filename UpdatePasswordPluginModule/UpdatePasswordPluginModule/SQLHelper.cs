@@ -15,7 +15,7 @@ namespace UpdatePasswordPluginModule
                 using (var connection = new SQLiteConnection($"Data Source = {config.DatabaseFilePath}\\{databaseFileName}"))
                 {
                     connection.Open();
-                    var Query = $"SELECT Counter FROM PasswordChanges WHERE Username = '{UserName}'";
+                    var Query = $"SELECT Count FROM PasswordChanges WHERE UserName = '{UserName}'";
                     using (var command = new SQLiteCommand(Query, connection))
                     {
                         using (SQLiteDataReader reader = command.ExecuteReader())
@@ -71,7 +71,7 @@ namespace UpdatePasswordPluginModule
                 using (var connection = new SQLiteConnection($"Data Source = {config.DatabaseFilePath}\\{databaseFileName}"))
                 {
                     connection.Open();
-                    var Query = $"SELECT Counter FROM PasswordChanges WHERE Username = '{UserName}'";
+                    var Query = $"SELECT Count FROM PasswordChanges WHERE UserName = '{UserName}'";
                     using (var command = new SQLiteCommand(Query, connection))
                     {
                         using (SQLiteDataReader reader = command.ExecuteReader())

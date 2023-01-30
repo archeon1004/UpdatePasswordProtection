@@ -12,8 +12,6 @@ namespace UpdatePasswordPluginModule
         public bool TorAuditOnly { get; set; }
         public bool Enabled { get; set; }
         public bool CheckIfTorNode { get; set; }
-        public bool DebugFileLogEnabled { get; set; }
-        public string FileLogPath { get; set; } = string.Empty;
         public string DatabaseFilePath { get; set; } = string.Empty;
 
         private const string regPath = "SOFTWARE\\ADFSUpdatePasswordPlugin";

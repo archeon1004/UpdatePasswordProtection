@@ -15,11 +15,26 @@ namespace UpdatePasswordPluginModule
         public string Username { get; set; }
         protected override void ProcessRecord()
         {
+            ConfigHelper config = new ConfigHelper();
             try
             {
-                //SQLHelper.ResetUserCounter(UserName: Username);
                 int retValue = SQLHelper.GetUserCounter(UserName: Username);
-                WriteObject($"User: '{Username}' has been registered {retValue} times by update password plugin");
+                if(retValue == -1) {
+                    WriteObject($"User: '{Username}' has not been found as lockedout by update password plugin");
+                }
+                else if(retValue == 0)
+                {
+                    WriteObject($"User: '{Username}' has not been found as lockedout by update password plugin");
+                }
+                else if(retValue >= config.RequestThreshold)
+                {
+                    WriteWarning($"User: '{Username}' is locked out");
+                    WriteObject($"User: '{Username}' has been lockedout due to {retValue} requests failed");
+                }
+                else
+                {
+                    WriteObject($"User: '{Username}' has been registered {retValue} times by update password plugin");
+                }
             }
             catch (Exception ex)
             {
