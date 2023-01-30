@@ -29,9 +29,10 @@ This plugin uses database and configuration file to operate. Currently database 
 - [x] Checking if request is from TOR network (not yet tested)
 - [x] Event log instead of a file
 
-## todo
+## Todo
 
 - [ ] Code Cleanup
+- [ ] Add Debug messages
 - [ ] Add powershell module to unlock / manage the plugin
 - [ ] Test performance of the logic and impact on adfs service
 
