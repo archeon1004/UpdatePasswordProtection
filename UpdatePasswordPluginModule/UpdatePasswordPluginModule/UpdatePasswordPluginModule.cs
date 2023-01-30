@@ -3,6 +3,7 @@ using System.Management.Automation;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.IO;
 
 namespace UpdatePasswordPluginModule
 {
@@ -10,22 +11,23 @@ namespace UpdatePasswordPluginModule
     public class LockedOutUser : Cmdlet
     {
         [Parameter(Position = 0, Mandatory = true)]
-        public string Key { get; set; }
-
-        [Parameter(Position = 1, Mandatory = true)]
-        public string Value { get; set; }
-
-        [Parameter(Position = 2, Mandatory = true)]
-        public string Path { get; set; }
-
+        [ValidateNotNullOrEmpty]
+        public string Username { get; set; }
         protected override void ProcessRecord()
         {
-            RegistryKey registryKey = Registry.LocalMachine.OpenSubKey(Path, true);
-            registryKey.SetValue(Key, Value);
-            WriteObject("Registry key added successfully.");
+            try
+            {
+                //SQLHelper.ResetUserCounter(UserName: Username);
+                int retValue = SQLHelper.GetUserCounter(UserName: Username);
+                WriteObject($"User: '{Username}' has been registered {retValue} times by update password plugin");
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }        
         }
     }
-    [Cmdlet("Invoke", "UPPLogConfig")]
+    [Cmdlet("Invoke", "UPLogConfig")]
     public class PluginLogConfiguration : Cmdlet
     {
         protected override void ProcessRecord()
@@ -54,10 +56,8 @@ namespace UpdatePasswordPluginModule
             {
                 throw e;
             }
-            
         }
     }
-
     [Cmdlet(VerbsCommon.Get,"UPconfig")]
     [CmdletBinding]
     public class PluginConfig : Cmdlet
@@ -68,4 +68,32 @@ namespace UpdatePasswordPluginModule
             WriteObject(config);
         }
     }
+    [Cmdlet(VerbsCommon.Clear,"UPLockedOutUser")]
+    [CmdletBinding]
+    public class ClearLockoutUser : Cmdlet
+    {
+        [Parameter(Position = 0, Mandatory = true)]
+        [ValidateNotNullOrEmpty]
+        public string Username { get; set; }
+        protected override void ProcessRecord()
+        {
+            try
+            {
+                SQLHelper.ResetUserCounter(UserName: Username);
+                WriteObject($"User: '{Username}' has been unlocked on update password endpoint");
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+    }
 }
+
+/*
+protected override void ProcessRecord()
+{
+    RegistryKey registryKey = Registry.LocalMachine.OpenSubKey(Path, true);
+    registryKey.SetValue(Key, Value);
+    WriteObject("Registry key added successfully.");
+}*/
