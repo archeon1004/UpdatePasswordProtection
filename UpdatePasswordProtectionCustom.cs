@@ -15,7 +15,7 @@ namespace ThreatDetectionModule
 
         internal Config _config = new Config();
 
-        public string InternalVersion => "0.0.2.12";
+        public string InternalVersion => "0.0.2.14";
 
         private readonly string EndpointName = "/adfs/portal/updatepassword";
 

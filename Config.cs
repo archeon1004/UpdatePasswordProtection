@@ -10,11 +10,7 @@ namespace ThreatDetectionModule
         internal bool TorAuditOnly { get; set; }
         internal bool Enabled { get; set;  }
         internal bool CheckIfTorNode { get; set; }
-        internal bool DebugFileLogEnabled { get; set; }
-        internal string FileLogPath { get; set; } = string.Empty;
         internal string DatabaseFilePath { get; set; } = string.Empty;
-
-
         private const string regPath = "SOFTWARE\\ADFSUpdatePasswordPlugin";
 
         public Config()
@@ -67,15 +63,18 @@ namespace ThreatDetectionModule
                 DatabaseFilePath = @"C:\Windows\ADFS\UpdatePasswordCustomPlugin\";
             } 
         }
-        public override string ToString() => $"Enabled: {Enabled};BypassPasswordUpdateProtection: {BypassPasswordUpdateProtection};RequestThreshold: {RequestThreshold};TorAuditOnly: {TorAuditOnly}; CheckIfTorNode: {CheckIfTorNode}";
+        public override string ToString() => $"Enabled: {Enabled};BypassPasswordUpdateProtection: {BypassPasswordUpdateProtection};RequestThreshold: {RequestThreshold};TorAuditOnly: {TorAuditOnly}; CheckIfTorNode: {CheckIfTorNode}; DatabaseFilePath: {DatabaseFilePath}";
         public void InitConfig()
         {
+            Debug.WriteLine($"ADFSUPPlugin:{this.GetType()}: InitConfig:Enter");
             try
             {
+                Debug.WriteLine($"ADFSUPPlugin:{this.GetType()}: DatabaseCreatetion");
                 SQLLiteHandlerClass.CreateDatabase(databasePath: DatabaseFilePath);
             }
             catch (Exception ex)
             {
+                Debug.WriteLine($"ADFSUPPlugin:{this.GetType()}: DatabaseCreatetion - Exception. {ex}");
                 WindowsLogger.WriteWinLogEvent($"SQL Initialization failed. \nException:\n{ex.Message}", EventLogEntryType.Error);
                 throw;
             } 
@@ -84,10 +83,12 @@ namespace ThreatDetectionModule
             {
                 TorModule.LoadTorExitNodes();
             }
-            catch
+            catch (Exception ex)
             {
+                Debug.WriteLine($"ADFSUPPlugin:{this.GetType()}: LoadTorExitNodes - Exception. {ex}");
                 WindowsLogger.WriteWinLogEvent($"Exception refreshing Tor Nodes. Disabling Tor Check", EventLogEntryType.Error);
             }
+            Debug.WriteLine($"ADFSUPPlugin:{this.GetType()}: InitConfig:Exit");
         }
     }
 }
