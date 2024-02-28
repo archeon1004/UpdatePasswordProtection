@@ -16,25 +16,18 @@ namespace UpdatePasswordPluginModule
         protected override void ProcessRecord()
         {
             ConfigHelper config = new ConfigHelper();
+            UserHelper user = new UserHelper();
             try
             {
                 int retValue = SQLHelper.GetUserCounter(UserName: Username);
-                if(retValue == -1) {
-                    WriteObject($"User: '{Username}' has not been found as lockedout by update password plugin");
-                }
-                else if(retValue == 0)
-                {
-                    WriteObject($"User: '{Username}' has not been found as lockedout by update password plugin");
-                }
-                else if(retValue >= config.RequestThreshold)
+                user.Username = Username;
+                user.FailedChangeCount = retValue;
+                user.CheckIfLockedOut();
+                if(retValue >= config.RequestThreshold)
                 {
                     WriteWarning($"User: '{Username}' is locked out");
-                    WriteObject($"User: '{Username}' has been lockedout due to {retValue} requests failed");
                 }
-                else
-                {
-                    WriteObject($"User: '{Username}' has been registered {retValue} times by update password plugin");
-                }
+                WriteObject(user);
             }
             catch (Exception ex)
             {
@@ -90,11 +83,14 @@ namespace UpdatePasswordPluginModule
         [Parameter(Position = 0, Mandatory = true)]
         [ValidateNotNullOrEmpty]
         public string Username { get; set; }
+        [Parameter(Position = 1, Mandatory = false)]
+        [ValidateNotNullOrEmpty]
+        public bool Force { get; set; }
         protected override void ProcessRecord()
         {
             try
             {
-                SQLHelper.ResetUserCounter(UserName: Username);
+                SQLHelper.ResetUserCounter(UserName: Username, forcereset: Force);
                 WriteObject($"User: '{Username}' has been unlocked on update password endpoint");
             }
             catch (Exception ex)

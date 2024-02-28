@@ -6,7 +6,7 @@ namespace UpdatePasswordPluginModule
     internal static class SQLHelper
     {
         private static readonly string databaseFileName = "uplockout.db";
-        internal static void ResetUserCounter(string UserName)
+        internal static void ResetUserCounter(string UserName,bool forcereset)
         {
             ConfigHelper config = new ConfigHelper();
             int retCounter = -1;
@@ -34,7 +34,7 @@ namespace UpdatePasswordPluginModule
                 var e = new Exception(ex.Message, ex.InnerException);
                 throw e;
             }
-            if(retCounter >= config.RequestThreshold)
+            if(retCounter >= config.RequestThreshold || forcereset == true)
             {
                 try
                 {
